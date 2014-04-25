@@ -30,6 +30,7 @@ public class DummyContent {
         addItem(new DummyItem("3", "Photo"));
         addItem(new DummyItem("4", "Audio"));
         addItem(new DummyItem("5", "Video"));
+        addItem(new DummyItem("6", "App"));
     }
 
     private static void addItem(DummyItem item) {
