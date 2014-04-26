@@ -4,8 +4,12 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Contacts;
+import android.provider.ContactsContract;
 import android.support.v4.app.Fragment;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -25,6 +29,9 @@ import android.widget.Toast;
 
 import com.rajpriya.anysender.dummy.DummyContent;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URISyntaxException;
 
 /**
@@ -43,6 +50,7 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
     private static final int VIDEO_SELECT_CODE = 2;
     private static final int AUDIO_SELECT_CODE = 3;
     private static final int APK_SELECT_CODE = 4;
+    private static final int CONTACT_PICKER_RESULT = 5;
     //private static final int FILE_SELECT_CODE = 0;
     // TODO: Rename parameter arguments, choose names that match
     // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -65,7 +73,7 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
      * The Adapter which will be used to populate the ListView/GridView with
      * Views.
      */
-    private ListAdapter mAdapter;
+    private ItemAdapter mAdapter;
 
     // TODO: Rename and change types of parameters
     public static ItemFragment newInstance(String param1, String param2) {
@@ -154,7 +162,7 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
                 showVideoChooser();
                 break;
             case 5:
-                startAppFragment();
+                startInstalledAppActivity();
                 break;
             default:
                 break;
@@ -164,7 +172,7 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
         if (null != mListener) {
             // Notify the active callbacks interface (the activity, if the
             // fragment is attached to one) that an item has been selected.
-            mListener.onFragmentInteraction(DummyContent.ITEMS.get(position).id);
+            //mListener.onFragmentInteraction(DummyContent.ITEMS.get(position).id);
         }
     }
 
@@ -235,15 +243,43 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
         startActivity(Intent.createChooser(sendIntent, "Send using"));
     }
 
-    public void startAppFragment() {
-        getActivity().getSupportFragmentManager().beginTransaction()
-                .replace(R.id.container, new InstalledAppsFragment())
-                .commit();
+    public void sendContact(Uri uri) {
+        String vCard = "";
+        AssetFileDescriptor fd;
 
+
+        try {
+            fd = getActivity().getContentResolver()
+                    .openAssetFileDescriptor(uri, "r");
+            FileInputStream fis = fd.createInputStream();
+            byte[] b = new byte[(int) fd.getDeclaredLength()];
+            fis.read(b);
+            vCard = new String(b);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Intent sendIntent = new Intent();
+        sendIntent.setAction(Intent.ACTION_SEND);
+        sendIntent.setType("text/x-vcard");
+        sendIntent.putExtra(Intent.EXTRA_TEXT, vCard);
+        //sendIntent.setData(uri);
+        startActivity(Intent.createChooser(sendIntent, "Send using"));
+    }
+
+    public void startInstalledAppActivity() {
+        startActivity(new Intent(getActivity(), InstalledFragmentActivity.class));
     }
 
     public void sendAudioVideo() {
 
+    }
+
+    private void startContactPicker(){
+        Intent contactPickerIntent = new Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI);
+        startActivityForResult(contactPickerIntent, CONTACT_PICKER_RESULT);
     }
 
     private void showFileChooser() {
@@ -387,6 +423,13 @@ public class ItemFragment extends Fragment implements GridView.OnItemClickListen
                     // File file = new File(path);
                     // Initiate the upload
                     sendFile(uri, "audio");
+                }
+                break;
+            case CONTACT_PICKER_RESULT:
+                if (resultCode == getActivity().RESULT_OK) {
+                    // Get the Uri of the selected file
+                    Uri uri = data.getData();
+                    sendContact(uri);
                 }
                 break;
         }
